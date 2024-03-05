@@ -7,9 +7,9 @@ import { sendData } from "../utils/sendData.js";
 //! 1- get All
 export function getAll(Model) {
   return catchAsync(async (req, res, next) => {
-    let filterReviewId = {};
+    let filterCarId = {};
 
-    if (req.params.reviewId) filterReviewId = { Review: req.params.reviewId };
+    if (req.params.carId) filterCarId = { car: req.params.carId };
 
     const queryFeatured = new APIFeatures(Model.find(filterReviewId), req.query)
       .filter()
@@ -23,7 +23,7 @@ export function getAll(Model) {
     sendData(
       200,
       "success",
-      "Requsted data successfully fetched",
+      "Requested data successfully fetched",
       documents,
       res
     );
@@ -43,7 +43,7 @@ export function getOne(Model, PopulateObj) {
     sendData(
       200,
       "success",
-      "Requsted data successfully fetched",
+      "Requested data successfully fetched",
       document,
       res
     );
@@ -78,6 +78,7 @@ export function updateOne(Model) {
 // ! 4- create new one  by id
 export function createOne(Model) {
   return catchAsync(async (req, res, next) => {
+    //? depend on the previous validations
     const newDocument = await Model.create(req.body);
 
     sendData(200, "success", "Created successfully", newDocument, res);

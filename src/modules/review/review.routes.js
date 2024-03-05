@@ -3,32 +3,34 @@ const carRouter = express.Router();
 //-----------------------------
 //? import controllers
 import {
-  getAllCars,
-  getCar,
-  updateCar,
-  deleteCar,
-  addCar,
-} from "./car.controller.js";
+  getAllReviewsOnCar,
+  getReview,
+  updateReview,
+  deleteReview,
+  addReview,
+} from "./review.controller.js";
 
 import {
   accessRestrictedTo,
   protect,
-  addUserIdToURL,
+  isCreaterUserOrAdmin,
 } from "../../middleware/authMiddlewares.js";
 
 //----------------------------
 //? routes
 
-carRouter.get("/", getAllCars);
+carRouter.get("/getAllReviewsOnCar", getAllReviewsOnCar);
 
 carRouter.use(protect);
 
-carRouter.post("/addCar", addCar);
+carRouter.post("/addCar", addReview);
+
+carRouter.use(isCreaterUserOrAdmin);
 // prettier-ignore
 carRouter
 .route("/:id")
-.get(getCar)
-.patch(updateCar)
-.delete(deleteCar);
+.get(getReview)
+.patch(updateReview)
+.delete(deleteReview);
 //----------------------------
 export default carRouter;
