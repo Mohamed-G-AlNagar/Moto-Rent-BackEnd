@@ -5,7 +5,6 @@ import AppError from "../../utils/appError.js";
 import catchAsync from "../../utils/catchAsync.js";
 import { sendData } from "../../utils/sendData.js";
 import { sendEmail } from "../../utils/email.js";
-import { signupTemp } from "../../utils/generateHTML.js";
 
 //-------------------------------
 const signToken = (user, expireWithin = process.env.JWT_EXPIRES_IN) => {
@@ -63,25 +62,9 @@ export const signup = catchAsync(async (req, res, next) => {
 
   const newUser = await User.create(req.body);
 
-  //? no need because of the validations before this step
-  // const newUser = await User.create({
-  //   // ? just pass to the schema model only the required data to save
-  //   firstName: req.body.firstName,
-  //   lastName: req.body.lastName,
-  //   email: req.body.email,
-  //   password: req.body.password,
-  //   passwordConfirm: req.body.passwordConfirm,
-  //   address: req.body.address,
-  //   phone: req.body.phone,
-  //   role: "user", // allow only user, to be admin need to change it from DB or admin updat it to admin
-  // });
-
   // make token expire within 15 minites
   const token = newUser.createVerifyEmailToken(15);
   await newUser.save({ validateBeforeSave: false });
-
-  // const url = `${process.env.BASE_URL}${process.env.PORT}/api/v1/users/verify/${token}`;
-  // const html = signupTemp(url, newUser.firstName);
 
   const url = `${process.env.BASE_URL}${process.env.PORT}/api/v1/users/verify/${token}`;
   const subject = "Verify Email link will expires whithin 15 minutes";
@@ -138,7 +121,6 @@ export const verifyAccount = catchAsync(async (req, res, next) => {
 
   //? mark the user as verified
   user.isVerified = true;
-  user.verifyEmailToken = undefined;
   await user.save();
 
   sendData(
@@ -160,7 +142,7 @@ export const login = catchAsync(async (req, res, next) => {
 
   //? 2- get the user obj by email an include in it the pass
   const user = await User.findOne({ email }).select("+password +isVerified");
-  //?3- check if the user email is not verfied email
+  //?3- check if the user email is not verified email
   if (!user) {
     return next(new AppError("this email is not a valid email", 401));
   }
@@ -170,9 +152,9 @@ export const login = catchAsync(async (req, res, next) => {
     return next(new AppError("Please verify your email", 401));
   }
 
-  //? 3- check if the user email excist & password is correct
+  //? 3- check if the user email exist & password is correct
   if (!user || !(await user.checkCorrectPassword(password, user.password))) {
-    return next(new AppError("Incrorrect email or password", 401));
+    return next(new AppError("Incorrect email or password", 401));
   }
 
   const loggedInUser = await User.findByIdAndUpdate(
@@ -180,6 +162,9 @@ export const login = catchAsync(async (req, res, next) => {
     { isLoggedIn: true },
     { new: true }
   );
+
+  loggedInUser.verifyEmailToken = undefined;
+  await loggedInUser.save({ validateBeforeSave: false });
 
   //? make token with this user id
   createSendToken(
@@ -200,7 +185,7 @@ export const logout = catchAsync(async (req, res, next) => {
     { new: true }
   );
 
-  //? make this user token expired by marking the user as loggedin= false then will make expire token
+  //? make this user token expired by marking the user as logged in= false then will make expire token
   createSendToken(
     loggedInUser,
     200,

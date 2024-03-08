@@ -19,8 +19,20 @@ const messageSchema = new mongoose.Schema({
     default: Date.now(),
   },
   status: {
-    type: Boolean,
-    default: false,
+    type: String,
+    enum: ['solved', 'pending'],
+    default: 'pending',
+  },
+  attachments: {
+    id: {
+      type: String
+    },
+    url: {
+      type: String
+    },
+  },
+  replay: {
+    type: String,
   },
 });
 
