@@ -37,7 +37,7 @@ export const forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
 
   //? 2- generate a random token will expires in 15 minutes
-  const resetToken = user.createResetPasswordToken(120);
+  const resetToken = user.createResetPasswordToken(15);
   await user.save({ validateBeforeSave: false });
 
   //? 3- send email to the user with the reset pass token
