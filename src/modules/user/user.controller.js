@@ -65,6 +65,7 @@ const populateObj = [
   },
 ];
 
+
 export const getAllUsers = getAll(User);
 
 export const getUser = getOne(User, populateObj);

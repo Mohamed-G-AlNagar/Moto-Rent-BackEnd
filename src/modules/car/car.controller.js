@@ -1,8 +1,55 @@
+import { nanoid } from "nanoid";
 import Car from "../../../DB/models/car.model.js";
 import AppError from "../../utils/appError.js";
 import catchAsync from "../../utils/catchAsync.js";
 import { sendData } from "../../utils/sendData.js";
 import { createOne, deleteOne, getAll, getOne, updateOne } from "../controllers.factory.js";
+import cloudinary from './../../utils/cloud.js';
+
+import dotenv from "dotenv";
+dotenv.config();
+
+export const addCar = catchAsync(async (req, res, next) => {
+  // check car existence
+  const isExist = await Car.findOne({ plateNumber: req.body.plateNumber });
+  if (isExist) return next(new AppError(`Car already exists`, 404));
+
+  if (!req.files) return next(new AppError("Product Images are required!", 400));
+
+  // create unique folder name
+  const cloudFolder = nanoid();
+
+  let images = [];
+  // upload images 
+  for (const file of req.files.images) {
+    const { secure_url, public_id } = await cloudinary.uploader.upload(file.path,
+      { folder: `${process.env.FOLDER_CLOUD_CARS}/cars/${cloudFolder}` });
+    images.push({ id: public_id, url: secure_url });
+  }
+
+
+  // console.log(req.files, "req.files.documents")
+
+  let documents = {};
+  for (const documentObj of req.files.documents) {
+    for (const key in documentObj) {
+      const files = documentObj[key];
+      for (const file of files) {
+        const { secure_url, public_id } = await cloudinary.uploader.upload(file.path, { folder: `${process.env.FOLDER_CLOUD_CARS}/documents/${cloudFolder}` });
+        documentObj[key] = { id: public_id, url: secure_url };
+      }
+      documents = { ...documents, ...documentObj }
+    }
+  }
+  console.log(documents, "documents")
+  const newCar = await Car.create({
+    ...req.body,
+    images,
+    documents,
+  });
+  sendData(201, "success", "Car added successfully", newCar, res);
+});
+
 
 export const approveCar = catchAsync(async (req, res, next) => {
   // check car existence
@@ -137,7 +184,7 @@ export const getCarsByManufacturingYear = catchAsync(async (req, res, next) => {
     return next(new AppError(`No Cars Exists in this year`, 404));
   }
   sendData(200, "success", "Requested data successfully fetched", cars, res);
-})
+});
 
 const populateObj = [
   {
@@ -158,4 +205,4 @@ export const deleteCar = deleteOne(Car);
 
 export const updateCar = updateOne(Car);
 
-export const addCar = createOne(Car);
+// export const addCar = createOne(Car);
