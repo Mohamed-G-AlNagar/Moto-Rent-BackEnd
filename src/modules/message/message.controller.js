@@ -7,13 +7,15 @@ import cloudinary from './../../utils/cloud.js';
 import { nanoid } from 'nanoid';
 
 export const getMyMessages = catchAsync(async (req, res, next) => {
-    const messages = await Message.find({ $or: [{ _id: req.user.id }, { driverLicense: req.user.driverLicense }] });
+    // const messages = await Message.find({ $or: [{ _id: req.body.id }, { driverLicense: req.body.driverLicense }] });
+    const messages = await Message.find({ user: req.user.id });
     if (!messages) return next(new AppError("No messages found", 404));
     sendData(200, "success", null, messages, res);
 });
 
 export const getUserMessages = catchAsync(async (req, res, next) => {
-    const messages = await Message.find({ $or: [{ _id: req.body.id }, { driverLicense: req.body.driverLicense }] });
+    // const messages = await Message.find({ $or: [{ _id: req.body.id }, { driverLicense: req.body.driverLicense }] });
+    const messages = await Message.find({ user: req.params.userId });
     if (!messages) return next(new AppError("No messages found", 404));
     sendData(200, "success", null, messages, res);
 });
@@ -35,22 +37,24 @@ export const addReplay = catchAsync(async (req, res, next) => {
     if (!message) return next(new AppError("No message found", 404));
     sendData(200, "success", "Replay added successfully", message, res);
 });
-//LINK - This function will be edit to add cloudinary image upload
-export const sendMessage = catchAsync(async (req, res, next) => {
 
-    console.log("Hello world");
+//----------------------------------------
+export const sendMessage = catchAsync(async (req, res, next) => {
 
     req.body.user = req.user.id;
 
-    console.log(req.file, "req.file");
-    // create unique folder name
-    const cloudFolder = nanoid();
+    let attachmentsObj = {}
+    if (req.file) {
+        // create unique folder name
+        const cloudFolder = nanoid();
 
-    const { public_id, secure_url } = await cloudinary.uploader.upload(req.file.path, { folder: `${process.env.FOLDER_CLOUD_MESSAGES}/documents/${cloudFolder}` });
+        const { public_id, secure_url } = await cloudinary.uploader.upload(req.file.path, { folder: `${process.env.FOLDER_CLOUD_MESSAGES}/documents/${cloudFolder}` });
+        attachmentsObj = { id: public_id, url: secure_url };
+    }
 
     const message = await Message.create({
         ...req.body,
-        attachments: { id: public_id, url: secure_url }
+        attachments: attachmentsObj
     });
     sendData(201, "success", "Message sent successfully", message, res);
 });

@@ -7,14 +7,32 @@ import { createOne, deleteOne, getAll, getOne, updateOne } from "../controllers.
 import cloudinary from './../../utils/cloud.js';
 
 import dotenv from "dotenv";
+import User from "../../../DB/models/user.model.js";
 dotenv.config();
 
+//----------------------------------------------
+// approve that rental has received the car
+
+export const updateToAvailable = catchAsync(async (req, res, next) => {
+  // check car existence
+  const isExist = await Car.findById(req.params.id);
+  if (!isExist) return next(new AppError(`car is not exists`, 404));
+  if (isExist.active !== true) return next(new AppError(`car is not active yet, please contact with us!`, 404));
+  // update car approval status
+  const car = await Car.findByIdAndUpdate(req.params.id, { approved: true, active: true, status: "available" }, { new: true });
+
+  sendData(200, "success", "Car Activated Successfully", car, res);
+});
+
+//----------------------------------------------
 export const addCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findOne({ plateNumber: req.body.plateNumber });
   if (isExist) return next(new AppError(`Car already exists`, 404));
 
-  if (!req.files) return next(new AppError("Product Images are required!", 400));
+
+  if (!req.files.images) return next(new AppError("Car Images are required!", 400));
+  if (req.files.documents.length < 3) return next(new AppError("Car documents are required!", 400));
 
   // create unique folder name
   const cloudFolder = nanoid();
@@ -28,8 +46,6 @@ export const addCar = catchAsync(async (req, res, next) => {
   }
 
 
-  // console.log(req.files, "req.files.documents")
-
   let documents = {};
   for (const documentObj of req.files.documents) {
     for (const key in documentObj) {
@@ -41,17 +57,19 @@ export const addCar = catchAsync(async (req, res, next) => {
       documents = { ...documents, ...documentObj };
     }
   }
-  // console.log(documents, "documents")
+
   const newCar = await Car.create({
     ...req.body,
+    ownerId: req.user._id,
     cloudFolder,
     images,
     documents,
   });
+  await User.findByIdAndUpdate(req.user._id, { $addToSet: { ownedCars: newCar._id } }, { new: true });
   sendData(201, "success", "Car added successfully", newCar, res);
 });
 
-
+//----------------------------------------------
 export const approveCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findById(req.params.id);
@@ -61,9 +79,10 @@ export const approveCar = catchAsync(async (req, res, next) => {
   if (!car) {
     return next(new AppError(`car id is not exists`, 404));
   }
-  sendData(200, "success", "Car Approved Successfully", null, res);
+  sendData(200, "success", "Car Approved Successfully", car, res);
 });
 
+//----------------------------------------------
 export const declineCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findById(req.params.id);
@@ -73,9 +92,10 @@ export const declineCar = catchAsync(async (req, res, next) => {
   if (!car) {
     return next(new AppError(`car id is not exists`, 404));
   }
-  sendData(200, "success", "Car Declined Successfully", null, res);
+  sendData(200, "success", "Car Declined Successfully", car, res);
 });
 
+//----------------------------------------------
 export const suspendCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findById(req.params.id);
@@ -85,9 +105,10 @@ export const suspendCar = catchAsync(async (req, res, next) => {
   if (!car) {
     return next(new AppError(`car id is not exists`, 404));
   }
-  sendData(200, "success", "Car Suspended Successfully", null, res);
+  sendData(200, "success", "Car Suspended Successfully", car, res);
 });
 
+//----------------------------------------------
 export const activateCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findById(req.params.id);
@@ -97,17 +118,19 @@ export const activateCar = catchAsync(async (req, res, next) => {
   if (!car) {
     return next(new AppError(`car id is not exists`, 404));
   }
-  sendData(200, "success", "Car Activated Successfully", null, res);
+  sendData(200, "success", "Car Activated Successfully", car, res);
 });
 
+//----------------------------------------------
 export const getCarsByCategory = catchAsync(async (req, res, next) => {
-  const cars = await Car.find({ category: req.body.category });
+  const cars = await Car.find({ category: req.body.category.toUpperCase() });
   if (!cars) {
     return next(new AppError(`This Category Not Exists`, 404));
   }
   sendData(200, "success", "Requested data successfully fetched", cars, res);
 });
 
+//----------------------------------------------
 export const getAllCategories = catchAsync(async (req, res, next) => {
   const categories = await Car.find().distinct("category");
   if (!categories) {
@@ -116,6 +139,7 @@ export const getAllCategories = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Requested data successfully fetched", categories, res);
 });
 
+//----------------------------------------------
 export const getTop5Cars = catchAsync(async (req, res, next) => {
   const top5Cars = await Car.aggregate([
     {
@@ -141,6 +165,7 @@ export const getTop5Cars = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Top 5 Cars fetched successfully", top5Cars, res);
 });
 
+//----------------------------------------------
 export const getTop5CarsByCategory = catchAsync(async (req, res, next) => {
   const top5Cars = await Car.aggregate([
     {
@@ -169,16 +194,19 @@ export const getTop5CarsByCategory = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Top 5 Cars fetched successfully", top5Cars, res);
 });
 
+//----------------------------------------------
 export const getTop5CheapestCars = catchAsync(async (req, res, next) => {
   const top5Cars = await Car.find().sort({ priceForDay: 1 }).limit(5);
   sendData(200, "success", "Top 5 Cheapest Cars fetched successfully", top5Cars, res);
 });
 
+//----------------------------------------------
 export const getTop5ExpensiveCars = catchAsync(async (req, res, next) => {
   const top5Cars = await Car.find().sort({ priceForDay: -1 }).limit(5);
   sendData(200, "success", "Top 5 Expensive Cars fetched successfully", top5Cars, res);
 });
 
+//----------------------------------------------
 export const getCarsByManufacturingYear = catchAsync(async (req, res, next) => {
   const cars = await Car.find({ manufacturingYear: { $gte: req.body.from, $lte: req.body.to } });
   if (!cars) {
@@ -187,49 +215,72 @@ export const getCarsByManufacturingYear = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Requested data successfully fetched", cars, res);
 });
 
+//----------------------------------------------
 export const updateCar = catchAsync(async (req, res, next) => {
   // check car existence
   const isExist = await Car.findById(req.params.id);
   if (!isExist) return next(new AppError(`car id is not exists`, 404));
 
-  if (!req.files) return next(new AppError("car Images are required!", 400));
+  let images;
+  let documents;
+  let cloudFolder;
+  if (req.files.images) {
 
-  const imagesArray = isExist.images;
+    const imagesArray = isExist.images;
 
-  const ids = imagesArray.map((imageObject) => imageObject.id);
+    const ids = imagesArray.map((imageObject) => imageObject.id);
 
-  // delete the old images from cloudinary
-  const result = await cloudinary.api.delete_resources(ids);
-  // delete image folder
-  await cloudinary.api.delete_folder(`${process.env.FOLDER_CLOUD_CARS}/images/${isExist.cloudFolder}`);
+    // delete the old images from cloudinary
+    const result = await cloudinary.api.delete_resources(ids);
+    // delete image folder
+    await cloudinary.api.delete_folder(`${process.env.FOLDER_CLOUD_CARS}/images/${isExist.cloudFolder}`);
 
-  // create unique folder name
-  const cloudFolder = nanoid();
+    cloudFolder = nanoid();
 
-  let images = [];
-  // upload images 
-  for (const file of req.files.images) {
-    const { secure_url, public_id } = await cloudinary.uploader.upload(file.path,
-      { folder: `${process.env.FOLDER_CLOUD_CARS}/cars/${cloudFolder}` });
-    images.push({ id: public_id, url: secure_url });
-  }
-
-  let documents = {};
-  for (const documentObj of req.files.documents) {
-    for (const key in documentObj) {
-      const files = documentObj[key];
-      for (const file of files) {
-        const { secure_url, public_id } = await cloudinary.uploader.upload(file.path, { folder: `${process.env.FOLDER_CLOUD_CARS}/documents/${cloudFolder}` });
-        documentObj[key] = { id: public_id, url: secure_url };
-      }
-      documents = { ...documents, ...documentObj };
+    images = [];
+    // upload images 
+    for (const file of req.files.images) {
+      const { secure_url, public_id } = await cloudinary.uploader.upload(file.path,
+        { folder: `${process.env.FOLDER_CLOUD_CARS}/cars/${cloudFolder}` });
+      images.push({ id: public_id, url: secure_url });
     }
   }
-  // console.log(documents, "documents")
-  const updatedCar = await Car.findByIdAndUpdate(req.params.id, {
-    ...req.body,
-    images,
-    documents,
+
+  if (req.files.documents.length !== 0) {
+    documents = {};
+    cloudFolder ? cloudFolder : cloudFolder = nanoid();
+
+    for (const documentObj of req.files.documents) {
+      for (const key in documentObj) {
+        const files = documentObj[key];
+        for (const file of files) {
+          const { secure_url, public_id } = await cloudinary.uploader.upload(file.path, { folder: `${process.env.FOLDER_CLOUD_CARS}/documents/${cloudFolder}` });
+          documentObj[key] = { id: public_id, url: secure_url };
+        }
+        documents = { ...documents, ...documentObj };
+      }
+    }
+    // console.log(documents, "documents")
+
+  }
+
+  const updateObject = {
+    ...req.body
+  };
+
+
+  if (images) {
+    updateObject.images = images;
+    updateObject.cloudFolder = cloudFolder;
+  }
+
+  if (documents) {
+    updateObject.documents = documents;
+    updateObject.cloudFolder = cloudFolder;
+  }
+
+  const updatedCar = await Car.findByIdAndUpdate(req.params.id, updateObject, {
+    new: true,
   });
   if (!updatedCar) {
     return next(new AppError(`car id is not exists`, 404));
@@ -237,8 +288,8 @@ export const updateCar = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Car updated successfully", updatedCar, res);
 });
 
+//----------------------------------------------
 export const deleteCar = catchAsync(async (req, res, next) => {
-  console.log("ksom isreal");
   // check car existence
   const isExist = await Car.findById(req.params.id);
   if (!isExist) return next(new AppError(`car id is not exists`, 404));
@@ -246,7 +297,7 @@ export const deleteCar = catchAsync(async (req, res, next) => {
   const imagesArray = isExist.images;
 
   const ids = imagesArray.map((imageObject) => imageObject.id);
-  console.log(process.env.FOLDER_CLOUD_CARS, "process.env.FOLDER_CLOUD_NAME");
+
   // delete the old images from cloudinary
   const result = await cloudinary.api.delete_resources(ids);
   // delete image folder
@@ -259,23 +310,14 @@ export const deleteCar = catchAsync(async (req, res, next) => {
   sendData(200, "success", "Car deleted successfully", null, res);
 });
 
+//----------------------------------------------
 const populateObj = [
   {
-    path: "rentedCars",
-    select: "-__v -id",
-  },
-  {
-    path: "ownedCars",
-    select: "-__v -id",
-  },
+    path: "brand",
+    select: "-__v -_id",
+  }
 ];
 
-export const getAllCars = getAll(Car);
+export const getAllCars = getAll(Car, populateObj);
 
 export const getCar = getOne(Car, populateObj);
-
-// export const deleteCar = deleteOne(Car);
-
-// export const updateCar = updateOne(Car);
-
-// export const addCar = createOne(Car);

@@ -23,9 +23,10 @@ const carSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["SUV", "Sedan", "Hatchback", "Coupe", "Convertible", "Wagon"],
+      enum: ["SUV", "SEDAN", "HATCHBACK", "COUPE", "CONVERTIBLE", "WAGON"],
       required: [true, "Car category is required"],
-      default: "Sedan",
+      uppercase: true,
+      default: "SEDAN",
     },
     tankCapacity: {
       type: Number,
@@ -52,7 +53,6 @@ const carSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["available", "rented", "pending", "rejected"],
-      required: [true, "Car status is required"],
       default: "pending",
     },
     approved: {
