@@ -38,12 +38,22 @@ export const addReplay = catchAsync(async (req, res, next) => {
     sendData(200, "success", "Replay added successfully", message, res);
 });
 
+
+export const seenUserMessages = catchAsync(async (req, res, next) => {
+    const messages = await Message.updateMany({ user: req.user._id }, { seen: true });
+console.log(messages)
+    if (messages.nModified === 0) {
+        return next(new AppError("No messages found for the user", 404));
+    }
+    sendData(200, "success", "All messages were marked as seen", messages, res);
+});
+// });
 //----------------------------------------
 export const sendMessage = catchAsync(async (req, res, next) => {
 
     req.body.user = req.user.id;
 
-    let attachmentsObj = {}
+    let attachmentsObj = {};
     if (req.file) {
         // create unique folder name
         const cloudFolder = nanoid();
@@ -59,5 +69,14 @@ export const sendMessage = catchAsync(async (req, res, next) => {
     sendData(201, "success", "Message sent successfully", message, res);
 });
 
+
+
 export const deleteMessage = deleteOne(Message);
-export const getAllMessages = getAll(Message);
+const populateObj = [
+    {
+        path: "user",
+        select: "-__v ",
+    }
+];
+
+export const getAllMessages = getAll(Message, populateObj);

@@ -33,12 +33,12 @@ userRouter.post("/logout", logout);
 userRouter
   .route("/userProfile")
   .get(addUserIdToURL, getUser)
-  .patch(addUserIdToURL, isValid(updateUserValidation), updateUser);
+  .patch(fileUpload(filterObject.image).single('image'), addUserIdToURL, isValid(updateUserValidation), updateUser);
 
 userRouter.patch("/userProfile/updatePassword", isValid(updatePasswordValidation), updateMyPassword);
 
 userRouter.delete("/clearWishlist", clearWishlist);
-userRouter.route("/wishList")
+userRouter.route("/wishList/:carId")
   .patch(addToWishlist)
   .delete(removeFromWishlist);
 //------------------------------------------------------------
@@ -51,7 +51,7 @@ userRouter.get("/", getAllUsers);
 userRouter
   .route("/:id")
   .get(isValid(idValidation), getUser)
-  .patch(isValid(updateUserValidation), updateUser)
+  .patch(fileUpload(filterObject.image).single('image'), isValid(updateUserValidation), updateUser)
   .delete(isValid(idValidation), deleteUser);
 //--------------------------
 export default userRouter;
